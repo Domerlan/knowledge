@@ -14,7 +14,7 @@ def test_register_confirm_login_refresh(client):
 
     confirm = client.post(
         "/api/telegram/confirm",
-        json={"code": code, "telegram_id": "123456"},
+        json={"code": code, "telegram_id": "123456", "telegram_username": "testuser"},
     )
     assert confirm.status_code == status.HTTP_200_OK
     assert confirm.json()["status"] == "approved"
