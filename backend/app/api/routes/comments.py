@@ -7,6 +7,7 @@ from app.core.deps import get_current_user, get_current_user_optional, get_db, r
 from app.models.article import Article
 from app.models.comment import Comment
 from app.schemas.comments import CommentCreate, CommentOut
+from app.services.sanitize import sanitize_html
 
 router = APIRouter(tags=["comments"])
 
@@ -47,7 +48,7 @@ def create_comment(
         article_id=article_id,
         author_id=current_user.id,
         parent_id=payload.parent_id,
-        content=payload.content,
+        content=sanitize_html(payload.content),
     )
     db.add(comment)
     db.commit()

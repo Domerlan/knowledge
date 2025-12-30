@@ -9,6 +9,7 @@ from app.core.deps import get_current_user_optional, get_db, require_role
 from app.models.article import Article
 from app.models.section import Section
 from app.schemas.articles import ArticleCreate, ArticleOut, ArticleUpdate
+from app.services.sanitize import sanitize_html
 
 router = APIRouter(prefix="/articles", tags=["articles"])
 
@@ -71,7 +72,7 @@ def create_article(
         section_id=payload.section_id,
         slug=payload.slug,
         title=payload.title,
-        content=payload.content,
+        content=sanitize_html(payload.content),
         status=payload.status,
         author_id=current_user.id,
     )
@@ -111,7 +112,7 @@ def update_article(
         article.title = payload.title
 
     if payload.content:
-        article.content = payload.content
+        article.content = sanitize_html(payload.content)
 
     if payload.status:
         article.status = payload.status

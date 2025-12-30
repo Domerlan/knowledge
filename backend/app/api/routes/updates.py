@@ -28,6 +28,7 @@ from app.services.sanitize import sanitize_html
 router = APIRouter(prefix="/updates", tags=["updates"])
 
 MAX_PER_PAGE = 50
+UPLOAD_CHUNK_SIZE = 1024 * 1024
 
 
 def _paginate(page: int, per_page: int) -> tuple[int, int]:
@@ -96,11 +97,6 @@ def upload_update_media(
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only images are allowed")
 
-    content = file.file.read()
-    max_bytes = settings.media_max_mb * 1024 * 1024
-    if len(content) > max_bytes:
-        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="File too large")
-
     ext = Path(file.filename).suffix.lower()
     if ext not in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported file type")
@@ -110,10 +106,33 @@ def upload_update_media(
 
     filename = f"{uuid4().hex}{ext}"
     file_path = subdir / filename
-    file_path.write_bytes(content)
+    max_bytes = settings.media_max_mb * 1024 * 1024
+    size = 0
+    try:
+        with file_path.open("wb") as out_file:
+            while True:
+                chunk = file.file.read(UPLOAD_CHUNK_SIZE)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > max_bytes:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail="File too large",
+                    )
+                out_file.write(chunk)
+    except HTTPException:
+        file_path.unlink(missing_ok=True)
+        raise
+    except Exception as exc:
+        file_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save file",
+        ) from exc
 
     url = f"{settings.media_url}/updates/{filename}"
-    return MediaUploadOut(url=url, filename=filename, size=len(content))
+    return MediaUploadOut(url=url, filename=filename, size=size)
 
 
 @router.get("/{update_id}", response_model=UpdatePublicDetail)

@@ -35,11 +35,15 @@ async def confirm_handler(message: Message) -> None:
         "telegram_username": message.from_user.username,
     }
 
-    async with httpx.AsyncClient(timeout=10) as client:
-        response = await client.post(
-            f"{settings.backend_base_url}/api/telegram/confirm",
-            json=payload,
-        )
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(
+                f"{settings.backend_base_url}/api/telegram/confirm",
+                json=payload,
+            )
+    except httpx.RequestError:
+        await message.answer("Не удалось связаться с сервером. Попробуйте позже.")
+        return
 
     if response.status_code == 200:
         await message.answer("Регистрация подтверждена. Теперь вы можете войти.")
