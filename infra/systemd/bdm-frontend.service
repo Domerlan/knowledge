@@ -1,0 +1,17 @@
+[Unit]
+Description=BDM Frontend (Next.js)
+After=network.target
+
+[Service]
+Type=simple
+User=bdm
+Group=bdm
+WorkingDirectory=/opt/bdm-knowledge/frontend
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/bdm/frontend.env
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,16 @@
+[Unit]
+Description=BDM Celery Worker
+After=network.target
+
+[Service]
+Type=simple
+User=bdm
+Group=bdm
+WorkingDirectory=/opt/bdm-knowledge/backend
+EnvironmentFile=/etc/bdm/bdm.env
+ExecStart=/opt/bdm-knowledge/backend/.venv/bin/celery -A app.celery_app worker --loglevel=INFO --concurrency=2
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

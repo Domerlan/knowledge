@@ -1,0 +1,16 @@
+[Unit]
+Description=BDM Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=bdm
+Group=bdm
+WorkingDirectory=/opt/bdm-knowledge/bot
+EnvironmentFile=/etc/bdm/bdm.env
+ExecStart=/opt/bdm-knowledge/bot/.venv/bin/python bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
