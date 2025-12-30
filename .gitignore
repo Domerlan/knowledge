@@ -33,3 +33,7 @@ build/
 
 # Uploads
 uploads/
+
+# Celery
+celerybeat-schedule
+backend/celerybeat-schedule
