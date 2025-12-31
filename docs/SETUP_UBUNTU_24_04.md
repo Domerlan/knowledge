@@ -138,6 +138,7 @@ sudo nano /etc/bdm/bdm.env
 Пример:
 ```
 APP_ENV=production
+LOG_LEVEL=INFO
 BASE_URL=https://bd-bdm.myrkey.ru
 
 DB_HOST=192.168.20.6
@@ -153,9 +154,17 @@ JWT_ACCESS_TTL_MIN=15
 JWT_REFRESH_TTL_DAYS=30
 
 TELEGRAM_BOT_TOKEN=CHANGE_ME
+TELEGRAM_CONFIRM_TOKEN=CHANGE_ME_LONG_TOKEN
 
 TG_CONFIRM_CODE_TTL_MIN=10
 TG_CONFIRM_MAX_ATTEMPTS=5
+
+# Rate limit (enabled by default)
+RATE_LIMIT_ENABLED=1
+RATE_LIMIT_WINDOW_SEC=60
+RATE_LIMIT_LOGIN_MAX=10
+RATE_LIMIT_REGISTER_MAX=5
+RATE_LIMIT_CONFIRM_MAX=10
 
 # Временное включение web-installer
 INSTALLER_ENABLED=1
@@ -166,6 +175,12 @@ MEDIA_DIR=/opt/bdm-knowledge/uploads
 MEDIA_URL=/api/media
 MEDIA_MAX_MB=10
 IFRAME_ALLOWED_HOSTS=youtube.com,youtu.be,youtube-nocookie.com,vk.com,vk.ru,player.vk.com
+
+# Dev CORS example: http://localhost:3000
+CORS_ALLOW_ORIGINS=
+
+# Bot uses this when sharing the env file
+BACKEND_BASE_URL=http://127.0.0.1:8000
 ```
 
 После завершения установки обязательно отключи инсталлер:

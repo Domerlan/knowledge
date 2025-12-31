@@ -133,6 +133,12 @@ MEDIA_DIR=/opt/bdm-knowledge/uploads
 MEDIA_URL=/api/media
 MEDIA_MAX_MB=10
 IFRAME_ALLOWED_HOSTS=youtube.com,youtu.be,youtube-nocookie.com,vk.com,vk.ru,player.vk.com
+
+# Dev CORS example: http://localhost:3000
+CORS_ALLOW_ORIGINS=
+
+# Bot uses this when sharing the env file
+BACKEND_BASE_URL=http://127.0.0.1:8000
 ```
 
 ### 4.2 Frontend env

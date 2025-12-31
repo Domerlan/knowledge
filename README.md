@@ -4,6 +4,8 @@
 
 Документация разработчика: `docs/DEV_GUIDE.md`  
 Инструкция запуска на Ubuntu 24.04: `docs/SETUP_UBUNTU_24_04.md`
+Контракт API: `docs/API.md`  
+Схема БД: `docs/DB.md`
 
 - Web-installer (удалённо): `https://<domain>/install` (требует `INSTALLER_ENABLED=1` + `INSTALLER_TOKEN`)
 - Bootstrap (опционально): `scripts/bootstrap.sh`
@@ -13,11 +15,58 @@
 - Раздел “Обновления игры”: `https://<domain>/updates`
 - Админка обновлений: `https://<domain>/moderator/updates` (роль moderator/admin)
 
-После установки можно полностью скрыть маршрут `/install`:
+Маршрут `/install` отключен по умолчанию (папка `_install.disabled`).
+Чтобы включить:
+```bash
+mv /opt/bdm-knowledge/frontend/src/app/_install.disabled /opt/bdm-knowledge/frontend/src/app/install
+cd /opt/bdm-knowledge/frontend && npm run build
+systemctl restart bdm-frontend
+```
+
+Чтобы снова скрыть `/install`:
 ```bash
 mv /opt/bdm-knowledge/frontend/src/app/install /opt/bdm-knowledge/frontend/src/app/_install.disabled
 cd /opt/bdm-knowledge/frontend && npm run build
 systemctl restart bdm-frontend
+```
+
+## Быстрый старт (dev)
+
+Backend:
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
+export APP_ENV=development
+export JWT_SECRET=dev_change_me
+export TELEGRAM_CONFIRM_TOKEN=dev_change_me
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Frontend:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## Проверки качества
+
+```bash
+cd backend
+PYTHONPATH=. pytest
+../.venv/bin/ruff check .
+../.venv/bin/black --check .
+```
+
+```bash
+cd frontend
+npm run lint
+```
+
+```bash
+./scripts/security_audit.sh
 ```
 
 ## Портал (WebM/MP4)
