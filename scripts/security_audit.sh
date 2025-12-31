@@ -9,6 +9,10 @@ if ! command -v pip-audit >/dev/null 2>&1; then
   exit 1
 fi
 pip-audit -r "${ROOT_DIR}/backend/requirements.txt"
+if [ -f "${ROOT_DIR}/backend/requirements-dev.txt" ]; then
+  echo "== Backend dev dependencies (pip-audit) =="
+  pip-audit -r "${ROOT_DIR}/backend/requirements-dev.txt"
+fi
 
 echo "== Frontend dependencies (npm audit) =="
 cd "${ROOT_DIR}/frontend"

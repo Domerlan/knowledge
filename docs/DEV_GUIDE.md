@@ -180,7 +180,7 @@ export JWT_SECRET=dev_change_me_please
 export TELEGRAM_CONFIRM_TOKEN=dev_change_me_please
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-dev.txt
 
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
