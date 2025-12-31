@@ -222,6 +222,15 @@ alembic upgrade head
 alembic downgrade -1
 ```
 
+## 6.3 Release checklist (кратко)
+
+- Секреты и ENV настроены: `JWT_SECRET`, `DB_PASSWORD`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CONFIRM_TOKEN`, `INSTALLER_TOKEN`.
+- Инсталлер отключён: `INSTALLER_ENABLED=0`, маршрут `/install` скрыт.
+- Бэкап БД и `uploads/` сделан.
+- CI зелёный (tests/lint/audit).
+- Миграции применены: `alembic upgrade head`.
+- Сервисы перезапущены и `GET /api/health` отвечает.
+
 ## 7) Модель данных (минимальная, MVP)
 
 ### 7.1 users
