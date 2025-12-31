@@ -16,11 +16,19 @@ def require_installer_token(request: Request) -> None:
 
     token = request.headers.get("X-Installer-Token")
     if not token or not settings.installer_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid installer token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid installer token"
+        )
     if not secrets.compare_digest(token, settings.installer_token):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid installer token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid installer token"
+        )
 
 
-def require_installer_available(db: Session = Depends(get_db), _: None = Depends(require_installer_token)) -> None:
+def require_installer_available(
+    db: Session = Depends(get_db), _: None = Depends(require_installer_token)
+) -> None:
     if is_installed(db):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Installer already completed")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Installer already completed"
+        )

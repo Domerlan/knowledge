@@ -20,7 +20,14 @@ class RegistrationRequest(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     attempts: Mapped[int] = mapped_column(default=0)
     status: Mapped[str] = mapped_column(
-        Enum("pending", "approved", "expired", "rejected", name="registration_status", native_enum=False),
+        Enum(
+            "pending",
+            "approved",
+            "expired",
+            "rejected",
+            name="registration_status",
+            native_enum=False,
+        ),
         default="pending",
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

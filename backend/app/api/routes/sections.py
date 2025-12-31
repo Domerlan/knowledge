@@ -53,6 +53,8 @@ def create_section(
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Slug already exists") from None
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Slug already exists"
+        ) from None
     db.refresh(section)
     return section

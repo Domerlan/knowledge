@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -52,7 +52,7 @@ export default function UpdatesAdminPage() {
     content: "<p>Введите текст обновления...</p>",
   });
 
-  const loadUpdates = async () => {
+  const loadUpdates = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
     if (statusFilter) params.set("status", statusFilter);
@@ -68,11 +68,11 @@ export default function UpdatesAdminPage() {
     }
     setItems(data.items);
     setLoading(false);
-  };
+  }, [includeDeleted, search, statusFilter]);
 
   useEffect(() => {
     loadUpdates();
-  }, [statusFilter, includeDeleted]);
+  }, [loadUpdates]);
 
   const resetForm = () => {
     setEditingId(null);

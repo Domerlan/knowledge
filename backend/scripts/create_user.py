@@ -9,7 +9,9 @@ from app.models.user import User
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Create a user in the BDM Knowledge Base database.")
+    parser = argparse.ArgumentParser(
+        description="Create a user in the BDM Knowledge Base database."
+    )
     parser.add_argument("--username", required=True, help="Username in @name format")
     parser.add_argument("--password", required=True, help="Plain password")
     parser.add_argument("--role", default="admin", choices=["user", "moderator", "admin"])

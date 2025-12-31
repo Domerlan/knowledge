@@ -85,7 +85,9 @@ def create_article(
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Slug already exists") from None
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Slug already exists"
+        ) from None
     db.refresh(article)
     return article
 
@@ -108,9 +110,13 @@ def update_article(
         article.section_id = payload.section_id
 
     if payload.slug:
-        existing = db.query(Article).filter(Article.slug == payload.slug, Article.id != article.id).first()
+        existing = (
+            db.query(Article).filter(Article.slug == payload.slug, Article.id != article.id).first()
+        )
         if existing:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Slug already exists")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Slug already exists"
+            )
         article.slug = payload.slug
 
     if payload.title:
@@ -130,8 +136,12 @@ def update_article(
     except IntegrityError:
         db.rollback()
         if payload.slug:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Slug already exists") from None
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Update conflict") from None
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Slug already exists"
+            ) from None
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Update conflict"
+        ) from None
     db.refresh(article)
     return article
 

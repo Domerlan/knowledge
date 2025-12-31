@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import logging
 import secrets
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
@@ -78,7 +78,9 @@ def confirm_registration(
             registration.username,
             extra=_log_extra(request),
         )
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request is not pending")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Request is not pending"
+        )
 
     telegram_username = (payload.telegram_username or "").strip().lstrip("@")
     if not telegram_username:
@@ -162,7 +164,9 @@ def confirm_registration(
             payload.telegram_id,
             extra=_log_extra(request),
         )
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Telegram already linked")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Telegram already linked"
+        )
 
     user = User(
         username=registration.username,
@@ -181,20 +185,28 @@ def confirm_registration(
         db.commit()
     except IntegrityError:
         db.rollback()
-        refreshed = db.query(RegistrationRequest).filter(RegistrationRequest.id == registration.id).first()
+        refreshed = (
+            db.query(RegistrationRequest).filter(RegistrationRequest.id == registration.id).first()
+        )
         if refreshed:
             registration = refreshed
         if db.query(User).filter(User.username == registration.username).first():
             registration.status = "rejected"
             db.add(registration)
             db.commit()
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists"
+            )
         if db.query(User).filter(User.telegram_id == payload.telegram_id).first():
             registration.status = "rejected"
             db.add(registration)
             db.commit()
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Telegram already linked")
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Registration conflict") from None
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Telegram already linked"
+            )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Registration conflict"
+        ) from None
 
     logger.info(
         "telegram_confirm_approved username=%s telegram_id=%s",

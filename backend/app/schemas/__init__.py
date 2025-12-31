@@ -14,8 +14,8 @@ from app.schemas.install import (
     InstallerOneClickOut,
     InstallerSeedIn,
     InstallerSeedOut,
-    InstallerStepResult,
     InstallerStatusOut,
+    InstallerStepResult,
 )
 from app.schemas.sections import SectionCreate, SectionOut
 from app.schemas.updates import (

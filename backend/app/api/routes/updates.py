@@ -65,10 +65,15 @@ def list_updates(
         GameUpdate.deleted_at.is_(None),
     )
 
-    total = db.query(func.count(GameUpdate.id)).filter(
-        GameUpdate.status == "published",
-        GameUpdate.deleted_at.is_(None),
-    ).scalar() or 0
+    total = (
+        db.query(func.count(GameUpdate.id))
+        .filter(
+            GameUpdate.status == "published",
+            GameUpdate.deleted_at.is_(None),
+        )
+        .scalar()
+        or 0
+    )
 
     items = (
         base_query.order_by(GameUpdate.patch_date.desc(), GameUpdate.created_at.desc())
@@ -95,7 +100,9 @@ def upload_update_media(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing filename")
 
     if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only images are allowed")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Only images are allowed"
+        )
 
     ext = Path(file.filename).suffix.lower()
     if ext not in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:

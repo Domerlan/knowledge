@@ -1,19 +1,24 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 import logging
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.deps import get_db
+from app.core.deps import get_current_user, get_db
 from app.core.rate_limit import enforce_rate_limit
-from app.core.security import decode_token, generate_confirm_code, hash_confirm_code, hash_password, verify_password
+from app.core.security import (
+    decode_token,
+    generate_confirm_code,
+    hash_confirm_code,
+    hash_password,
+    verify_password,
+)
 from app.models.registration_request import RegistrationRequest
 from app.models.user import User
-from app.core.deps import get_current_user
 from app.schemas.auth import (
     AuthResponse,
     LoginIn,
@@ -53,7 +58,9 @@ def register(
     )
     username = payload.username.strip()
     if not username.startswith("@"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username must start with @")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Username must start with @"
+        )
 
     existing_user = db.query(User).filter(User.username == username).first()
     if existing_user:
@@ -114,7 +121,9 @@ def register(
 @router.post("/register/status", response_model=RegisterStatusOut)
 def register_status(payload: RegisterStatusIn, db: Session = Depends(get_db)) -> RegisterStatusOut:
     code_hash = hash_confirm_code(payload.code.strip().upper())
-    request = db.query(RegistrationRequest).filter(RegistrationRequest.code_hash == code_hash).first()
+    request = (
+        db.query(RegistrationRequest).filter(RegistrationRequest.code_hash == code_hash).first()
+    )
     if not request:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid code")
 
@@ -169,7 +178,9 @@ def login(
 def refresh(request: Request, response: Response, db: Session = Depends(get_db)) -> AuthResponse:
     token = request.cookies.get(settings.refresh_cookie_name)
     if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token"
+        )
 
     try:
         payload = decode_token(token)
@@ -181,7 +192,9 @@ def refresh(request: Request, response: Response, db: Session = Depends(get_db))
 
     user_id = payload.get("sub")
     if not isinstance(user_id, str):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token subject")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token subject"
+        )
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.is_active:

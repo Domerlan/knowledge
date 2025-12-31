@@ -38,7 +38,9 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
 
     user_id = payload.get("sub")
     if not isinstance(user_id, str):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token subject")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token subject"
+        )
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.is_active:
@@ -74,7 +76,9 @@ def get_current_user_optional(request: Request, db: Session = Depends(get_db)) -
 def require_role(roles: list[str]):
     def _role_checker(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role not in roles:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions"
+            )
         return current_user
 
     return _role_checker

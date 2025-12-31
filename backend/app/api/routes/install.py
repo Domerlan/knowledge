@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-import os
 import logging
+import os
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from redis import Redis
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import URL
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
-from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
 from app.core.deps import get_db
@@ -20,19 +20,19 @@ from app.models.section import Section
 from app.models.user import User
 from app.schemas.install import (
     InstallerAdminIn,
+    InstallerBootstrapStatusOut,
     InstallerChecksOut,
+    InstallerDbCheckIn,
+    InstallerDbCheckOut,
+    InstallerEnvIn,
+    InstallerEnvOut,
     InstallerFinishOut,
     InstallerFullIn,
     InstallerFullOut,
-    InstallerHostCheckItem,
     InstallerHostCheckIn,
+    InstallerHostCheckItem,
     InstallerHostCheckOut,
     InstallerHostCheckResult,
-    InstallerEnvIn,
-    InstallerEnvOut,
-    InstallerBootstrapStatusOut,
-    InstallerDbCheckIn,
-    InstallerDbCheckOut,
     InstallerMigrateOut,
     InstallerOneClickIn,
     InstallerOneClickOut,
@@ -83,7 +83,9 @@ def _safe_output(output: str | None) -> str | None:
 @router.get("/public-status", response_model=InstallerPublicStatusOut)
 def installer_public_status() -> InstallerPublicStatusOut:
     snapshot = get_state_snapshot()
-    return InstallerPublicStatusOut(enabled=settings.installer_enabled, installed=snapshot["installed"])
+    return InstallerPublicStatusOut(
+        enabled=settings.installer_enabled, installed=snapshot["installed"]
+    )
 
 
 def _database_uri_from_env(env_values: dict[str, str]) -> str:
@@ -125,13 +127,19 @@ def _session_for_uri(database_uri: str) -> tuple[Session, object]:
     return session, engine
 
 
-@router.get("/status", response_model=InstallerStatusOut, dependencies=[Depends(require_installer_token)])
+@router.get(
+    "/status", response_model=InstallerStatusOut, dependencies=[Depends(require_installer_token)]
+)
 def installer_status() -> InstallerStatusOut:
     snapshot = get_state_snapshot()
     return InstallerStatusOut(enabled=settings.installer_enabled, **snapshot)
 
 
-@router.post("/checks", response_model=InstallerChecksOut, dependencies=[Depends(require_installer_available)])
+@router.post(
+    "/checks",
+    response_model=InstallerChecksOut,
+    dependencies=[Depends(require_installer_available)],
+)
 def installer_checks(db: Session = Depends(get_db)) -> InstallerChecksOut:
     db_ok = check_database(db)
     redis_ok = False
@@ -148,7 +156,11 @@ def installer_checks(db: Session = Depends(get_db)) -> InstallerChecksOut:
     return InstallerChecksOut(db_ok=db_ok, redis_ok=bool(redis_ok))
 
 
-@router.post("/hosts-check", response_model=InstallerHostCheckOut, dependencies=[Depends(require_installer_token)])
+@router.post(
+    "/hosts-check",
+    response_model=InstallerHostCheckOut,
+    dependencies=[Depends(require_installer_token)],
+)
 def installer_hosts_check(payload: InstallerHostCheckIn) -> InstallerHostCheckOut:
     items = payload.items
     if not items:
@@ -188,7 +200,9 @@ def installer_bootstrap_status() -> InstallerBootstrapStatusOut:
     )
 
 
-@router.post("/env", response_model=InstallerEnvOut, dependencies=[Depends(require_installer_token)])
+@router.post(
+    "/env", response_model=InstallerEnvOut, dependencies=[Depends(require_installer_token)]
+)
 def installer_env(payload: InstallerEnvIn) -> InstallerEnvOut:
     paths = system_paths()
     try:
@@ -204,7 +218,9 @@ def installer_env(payload: InstallerEnvIn) -> InstallerEnvOut:
     return InstallerEnvOut(status="ok")
 
 
-@router.post("/db-check", response_model=InstallerDbCheckOut, dependencies=[Depends(require_installer_token)])
+@router.post(
+    "/db-check", response_model=InstallerDbCheckOut, dependencies=[Depends(require_installer_token)]
+)
 def installer_db_check(payload: InstallerDbCheckIn) -> InstallerDbCheckOut:
     env_values = parse_env(payload.backend_env)
     try:
@@ -237,7 +253,11 @@ def installer_db_check(payload: InstallerDbCheckIn) -> InstallerDbCheckOut:
         engine.dispose()
 
 
-@router.post("/system-setup", response_model=InstallerSystemSetupOut, dependencies=[Depends(require_installer_token)])
+@router.post(
+    "/system-setup",
+    response_model=InstallerSystemSetupOut,
+    dependencies=[Depends(require_installer_token)],
+)
 def installer_system_setup(payload: InstallerSystemSetupIn) -> InstallerSystemSetupOut:
     paths = system_paths()
     ok, output = run_system_install(
@@ -260,7 +280,11 @@ def installer_system_setup(payload: InstallerSystemSetupIn) -> InstallerSystemSe
     return InstallerSystemSetupOut(status="ok" if ok else "failed", output=_safe_output(output))
 
 
-@router.post("/migrate", response_model=InstallerMigrateOut, dependencies=[Depends(require_installer_available)])
+@router.post(
+    "/migrate",
+    response_model=InstallerMigrateOut,
+    dependencies=[Depends(require_installer_available)],
+)
 def installer_migrate() -> InstallerMigrateOut:
     try:
         run_migrations()
@@ -274,7 +298,9 @@ def installer_migrate() -> InstallerMigrateOut:
     return InstallerMigrateOut(status="ok")
 
 
-@router.post("/admin", response_model=InstallerFinishOut, dependencies=[Depends(require_installer_available)])
+@router.post(
+    "/admin", response_model=InstallerFinishOut, dependencies=[Depends(require_installer_available)]
+)
 def installer_admin(payload: InstallerAdminIn, db: Session = Depends(get_db)) -> InstallerFinishOut:
     existing = db.query(User).filter(User.username == payload.username).first()
     if existing:
@@ -299,7 +325,9 @@ def installer_admin(payload: InstallerAdminIn, db: Session = Depends(get_db)) ->
     return InstallerFinishOut(status="created")
 
 
-@router.post("/seed", response_model=InstallerSeedOut, dependencies=[Depends(require_installer_available)])
+@router.post(
+    "/seed", response_model=InstallerSeedOut, dependencies=[Depends(require_installer_available)]
+)
 def installer_seed(payload: InstallerSeedIn, db: Session = Depends(get_db)) -> InstallerSeedOut:
     author = db.query(User).filter(User.username == payload.author_username).first()
     if not author:
@@ -309,7 +337,11 @@ def installer_seed(payload: InstallerSeedIn, db: Session = Depends(get_db)) -> I
     return InstallerSeedOut(status="ok")
 
 
-@router.post("/finish", response_model=InstallerFinishOut, dependencies=[Depends(require_installer_available)])
+@router.post(
+    "/finish",
+    response_model=InstallerFinishOut,
+    dependencies=[Depends(require_installer_available)],
+)
 def installer_finish(db: Session = Depends(get_db)) -> InstallerFinishOut:
     admin_user = db.query(User).filter(User.role == "admin").order_by(User.created_at.asc()).first()
     admin_id = admin_user.id if admin_user else None
@@ -332,7 +364,9 @@ def _run_one_click(payload: InstallerOneClickIn, db: Session) -> InstallerOneCli
     env_values = parse_env(payload.backend_env) if payload.backend_env else {}
     try:
         database_uri = (
-            _database_uri_from_env(env_values) if payload.backend_env else settings.sqlalchemy_database_uri()
+            _database_uri_from_env(env_values)
+            if payload.backend_env
+            else settings.sqlalchemy_database_uri()
         )
     except Exception as exc:
         logger.exception("Installer one-click preparation failed")
@@ -542,8 +576,14 @@ def _run_one_click(payload: InstallerOneClickIn, db: Session) -> InstallerOneCli
     return result
 
 
-@router.post("/one-click", response_model=InstallerOneClickOut, dependencies=[Depends(require_installer_available)])
-def installer_one_click(payload: InstallerOneClickIn, db: Session = Depends(get_db)) -> InstallerOneClickOut:
+@router.post(
+    "/one-click",
+    response_model=InstallerOneClickOut,
+    dependencies=[Depends(require_installer_available)],
+)
+def installer_one_click(
+    payload: InstallerOneClickIn, db: Session = Depends(get_db)
+) -> InstallerOneClickOut:
     try:
         return _run_one_click(payload, db)
     except Exception as exc:
@@ -560,7 +600,9 @@ def installer_one_click(payload: InstallerOneClickIn, db: Session = Depends(get_
         )
 
 
-@router.post("/full", response_model=InstallerFullOut, dependencies=[Depends(require_installer_available)])
+@router.post(
+    "/full", response_model=InstallerFullOut, dependencies=[Depends(require_installer_available)]
+)
 def installer_full(payload: InstallerFullIn, db: Session = Depends(get_db)) -> InstallerFullOut:
     steps: list[InstallerStepResult] = []
     output = ""
@@ -588,14 +630,18 @@ def installer_full(payload: InstallerFullIn, db: Session = Depends(get_db)) -> I
         root_password = payload.db_root_password or ""
         if not root_user or not root_password:
             steps.append(
-                InstallerStepResult(step="provision_db", status="failed", detail="Missing DB root credentials")
+                InstallerStepResult(
+                    step="provision_db", status="failed", detail="Missing DB root credentials"
+                )
             )
             return InstallerFullOut(status="failed", steps=steps, output=output)
         app_user = env_values.get("DB_USER", settings.db_user)
         app_password = env_values.get("DB_PASSWORD", settings.db_password)
         if not app_user or not app_password:
             steps.append(
-                InstallerStepResult(step="provision_db", status="failed", detail="Missing DB user credentials")
+                InstallerStepResult(
+                    step="provision_db", status="failed", detail="Missing DB user credentials"
+                )
             )
             return InstallerFullOut(status="failed", steps=steps, output=output)
         try:
@@ -637,7 +683,9 @@ def installer_full(payload: InstallerFullIn, db: Session = Depends(get_db)) -> I
     if ok:
         steps.append(InstallerStepResult(step="system_install", status="ok"))
     else:
-        log_extra = {"output": script_output} if settings.app_env != "production" and script_output else {}
+        log_extra = (
+            {"output": script_output} if settings.app_env != "production" and script_output else {}
+        )
         logger.error("Installer system install failed", extra=log_extra)
         steps.append(InstallerStepResult(step="system_install", status="failed"))
         return InstallerFullOut(status="failed", steps=steps, output=output)

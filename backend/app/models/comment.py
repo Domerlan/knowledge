@@ -15,7 +15,9 @@ class Comment(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
     article_id: Mapped[str] = mapped_column(String(36), ForeignKey("articles.id"), index=True)
     author_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
-    parent_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("comments.id"), nullable=True)
+    parent_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("comments.id"), nullable=True
+    )
     content: Mapped[str] = mapped_column(Text)
     is_hidden: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

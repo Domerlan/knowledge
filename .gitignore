@@ -37,3 +37,6 @@ uploads/
 # Celery
 celerybeat-schedule
 backend/celerybeat-schedule
+
+# Local test database
+backend/test.db

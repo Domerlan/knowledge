@@ -51,9 +51,7 @@ ALLOWED_PROTOCOLS = ["http", "https", "mailto"]
 
 def _allowed_iframe_hosts() -> set[str]:
     return {
-        host.strip().lower()
-        for host in settings.iframe_allowed_hosts.split(",")
-        if host.strip()
+        host.strip().lower() for host in settings.iframe_allowed_hosts.split(",") if host.strip()
     }
 
 

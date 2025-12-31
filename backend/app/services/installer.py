@@ -5,12 +5,12 @@ import socket
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
-from alembic import command
-from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from alembic import command
+from alembic.config import Config
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models.installation_state import InstallationState

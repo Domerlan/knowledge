@@ -5,11 +5,12 @@ Revises: 0002_installation_state
 Create Date: 2025-01-03 00:00:00.000000
 
 """
+
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision = "0003_game_updates"
 down_revision = "0002_installation_state"
@@ -33,7 +34,9 @@ def upgrade() -> None:
         sa.Column("created_by_id", sa.String(length=36), nullable=False),
         sa.Column("updated_by_id", sa.String(length=36), nullable=True),
         sa.Column("published_by_id", sa.String(length=36), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("published_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
@@ -44,7 +47,9 @@ def upgrade() -> None:
     op.create_index("ix_game_updates_patch_date", "game_updates", ["patch_date"], unique=False)
     op.create_index("ix_game_updates_status", "game_updates", ["status"], unique=False)
     op.create_index("ix_game_updates_deleted_at", "game_updates", ["deleted_at"], unique=False)
-    op.create_index("ix_game_updates_created_by_id", "game_updates", ["created_by_id"], unique=False)
+    op.create_index(
+        "ix_game_updates_created_by_id", "game_updates", ["created_by_id"], unique=False
+    )
 
     op.create_table(
         "game_update_audits",
@@ -53,12 +58,18 @@ def upgrade() -> None:
         sa.Column("actor_id", sa.String(length=36), nullable=False),
         sa.Column("action", sa.String(length=32), nullable=False),
         sa.Column("metadata", sa.JSON(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
         sa.ForeignKeyConstraint(["update_id"], ["game_updates.id"]),
         sa.ForeignKeyConstraint(["actor_id"], ["users.id"]),
     )
-    op.create_index("ix_game_update_audits_update_id", "game_update_audits", ["update_id"], unique=False)
-    op.create_index("ix_game_update_audits_actor_id", "game_update_audits", ["actor_id"], unique=False)
+    op.create_index(
+        "ix_game_update_audits_update_id", "game_update_audits", ["update_id"], unique=False
+    )
+    op.create_index(
+        "ix_game_update_audits_actor_id", "game_update_audits", ["actor_id"], unique=False
+    )
 
 
 def downgrade() -> None:

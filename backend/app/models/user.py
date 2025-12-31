@@ -19,7 +19,9 @@ class User(Base):
         Enum("user", "moderator", "admin", name="user_roles", native_enum=False),
         default="user",
     )
-    telegram_id: Mapped[str | None] = mapped_column(String(32), unique=True, index=True, nullable=True)
+    telegram_id: Mapped[str | None] = mapped_column(
+        String(32), unique=True, index=True, nullable=True
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

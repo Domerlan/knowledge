@@ -59,7 +59,9 @@ media_path.mkdir(parents=True, exist_ok=True)
 app.mount(settings.media_url, StaticFiles(directory=media_path), name="media")
 
 if settings.cors_allow_origins:
-    origins = [origin.strip() for origin in settings.cors_allow_origins.split(",") if origin.strip()]
+    origins = [
+        origin.strip() for origin in settings.cors_allow_origins.split(",") if origin.strip()
+    ]
     if origins:
         if "*" in origins:
             message = "CORS_ALLOW_ORIGINS cannot include '*' when credentials are enabled"

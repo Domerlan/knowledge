@@ -33,14 +33,20 @@ def list_comments(
     return query.order_by(Comment.created_at.asc()).all()
 
 
-@router.post("/articles/{article_id}/comments", response_model=CommentOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/articles/{article_id}/comments",
+    response_model=CommentOut,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_comment(
     article_id: str,
     payload: CommentCreate,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ) -> CommentOut:
-    article = db.query(Article).filter(Article.id == article_id, Article.status == "published").first()
+    article = (
+        db.query(Article).filter(Article.id == article_id, Article.status == "published").first()
+    )
     if not article:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
 

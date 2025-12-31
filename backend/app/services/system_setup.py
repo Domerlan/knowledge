@@ -127,8 +127,16 @@ def run_system_install(options: dict[str, Any]) -> tuple[bool, str]:
         output = (result.stdout or "") + ("\n" + result.stderr if result.stderr else "")
         return result.returncode == 0, output.strip()
     except subprocess.TimeoutExpired as exc:
-        stdout = exc.stdout.decode("utf-8", "replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
-        stderr = exc.stderr.decode("utf-8", "replace") if isinstance(exc.stderr, bytes) else (exc.stderr or "")
+        stdout = (
+            exc.stdout.decode("utf-8", "replace")
+            if isinstance(exc.stdout, bytes)
+            else (exc.stdout or "")
+        )
+        stderr = (
+            exc.stderr.decode("utf-8", "replace")
+            if isinstance(exc.stderr, bytes)
+            else (exc.stderr or "")
+        )
         output = stdout + ("\n" + stderr if stderr else "")
         detail = output.strip() or f"System install timed out after {timeout_sec}s"
         return False, detail

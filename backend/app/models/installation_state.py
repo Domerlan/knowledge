@@ -13,7 +13,9 @@ class InstallationState(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     installed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    admin_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    admin_user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True
+    )
     seed_applied: Mapped[bool] = mapped_column(Boolean, default=False)
 
     admin_user = relationship("User")

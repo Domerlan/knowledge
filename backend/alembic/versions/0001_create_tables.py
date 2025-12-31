@@ -5,11 +5,12 @@ Revises: None
 Create Date: 2024-12-23 13:10:00.000000
 
 """
+
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0001_create_tables"
@@ -32,7 +33,9 @@ def upgrade() -> None:
         ),
         sa.Column("telegram_id", sa.String(length=32), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
     )
     op.create_index("ix_users_username", "users", ["username"], unique=True)
     op.create_index("ix_users_telegram_id", "users", ["telegram_id"], unique=True)
@@ -62,7 +65,9 @@ def upgrade() -> None:
             server_default="draft",
         ),
         sa.Column("author_id", sa.String(length=36), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("published_at", sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(["section_id"], ["sections.id"]),
@@ -80,7 +85,9 @@ def upgrade() -> None:
         sa.Column("parent_id", sa.String(length=36), nullable=True),
         sa.Column("content", sa.Text(), nullable=False),
         sa.Column("is_hidden", sa.Boolean(), nullable=False, server_default=sa.text("0")),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(["article_id"], ["articles.id"]),
         sa.ForeignKeyConstraint(["author_id"], ["users.id"]),
@@ -100,14 +107,27 @@ def upgrade() -> None:
         sa.Column("attempts", sa.Integer(), nullable=False, server_default="0"),
         sa.Column(
             "status",
-            sa.Enum("pending", "approved", "expired", "rejected", name="registration_status", native_enum=False),
+            sa.Enum(
+                "pending",
+                "approved",
+                "expired",
+                "rejected",
+                name="registration_status",
+                native_enum=False,
+            ),
             nullable=False,
             server_default="pending",
         ),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
     )
-    op.create_index("ix_registration_requests_username", "registration_requests", ["username"], unique=False)
-    op.create_index("ix_registration_requests_code_hash", "registration_requests", ["code_hash"], unique=True)
+    op.create_index(
+        "ix_registration_requests_username", "registration_requests", ["username"], unique=False
+    )
+    op.create_index(
+        "ix_registration_requests_code_hash", "registration_requests", ["code_hash"], unique=True
+    )
 
 
 def downgrade() -> None:
