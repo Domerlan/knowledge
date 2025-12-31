@@ -17,8 +17,38 @@ from starlette.responses import JSONResponse
 from app.api.api import api_router
 from app.core.config import settings
 
-logging.basicConfig(level=logging.INFO)
+
+class _DefaultLogFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        defaults = {
+            "request_id": "-",
+            "method": "-",
+            "path": "-",
+            "status_code": "-",
+            "duration_ms": "-",
+            "client_ip": "-",
+        }
+        for key, value in defaults.items():
+            if not hasattr(record, key):
+                setattr(record, key, value)
+        return True
+
+
+LOG_FORMAT = (
+    "%(asctime)s %(levelname)s %(name)s %(message)s "
+    "request_id=%(request_id)s method=%(method)s path=%(path)s "
+    "status=%(status_code)s duration_ms=%(duration_ms)s client_ip=%(client_ip)s"
+)
+logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+logging.getLogger().addFilter(_DefaultLogFilter())
+
 logger = logging.getLogger("bdm")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    handler.addFilter(_DefaultLogFilter())
+    logger.addHandler(handler)
+    logger.propagate = False
 
 app = FastAPI(title="BDM Knowledge Base")
 app.include_router(api_router, prefix="/api")
@@ -44,6 +74,15 @@ if settings.cors_allow_origins:
         )
 
 
+def _log_extra(request: Request) -> dict[str, object]:
+    return {
+        "request_id": getattr(request.state, "request_id", None),
+        "method": request.method,
+        "path": request.url.path,
+        "client_ip": request.client.host if request.client else None,
+    }
+
+
 def _service_unavailable(request: Request, detail: str) -> JSONResponse:
     request_id = getattr(request.state, "request_id", None)
     payload = {"detail": detail}
@@ -54,25 +93,25 @@ def _service_unavailable(request: Request, detail: str) -> JSONResponse:
 
 @app.exception_handler(SQLAlchemyError)
 async def sqlalchemy_error_handler(request: Request, exc: SQLAlchemyError):
-    logger.exception("Database error")
+    logger.exception("Database error", extra=_log_extra(request))
     return _service_unavailable(request, "Database unavailable")
 
 
 @app.exception_handler(RedisError)
 async def redis_error_handler(request: Request, exc: RedisError):
-    logger.exception("Redis error")
+    logger.exception("Redis error", extra=_log_extra(request))
     return _service_unavailable(request, "Cache unavailable")
 
 
 @app.exception_handler(httpx.RequestError)
 async def httpx_error_handler(request: Request, exc: httpx.RequestError):
-    logger.exception("HTTP client error")
+    logger.exception("HTTP client error", extra=_log_extra(request))
     return _service_unavailable(request, "Upstream service unavailable")
 
 
 @app.exception_handler(asyncio.TimeoutError)
 async def timeout_error_handler(request: Request, exc: asyncio.TimeoutError):
-    logger.exception("Timeout error")
+    logger.exception("Timeout error", extra=_log_extra(request))
     return _service_unavailable(request, "Upstream service timeout")
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import logging
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -15,6 +16,16 @@ from app.models.user import User
 from app.schemas.auth import TelegramConfirmIn, TelegramConfirmOut
 
 router = APIRouter(prefix="/telegram", tags=["telegram"])
+logger = logging.getLogger("bdm.telegram")
+
+
+def _log_extra(request: Request) -> dict[str, object]:
+    return {
+        "request_id": getattr(request.state, "request_id", None),
+        "method": request.method,
+        "path": request.url.path,
+        "client_ip": request.client.host if request.client else None,
+    }
 
 
 def _require_bot_token(request: Request) -> None:
@@ -47,9 +58,20 @@ def confirm_registration(
     code_hash = hash_confirm_code(payload.code.strip().upper())
     registration = db.query(RegistrationRequest).filter(RegistrationRequest.code_hash == code_hash).first()
     if not registration:
+        logger.warning(
+            "telegram_confirm_invalid_code telegram_id=%s",
+            payload.telegram_id,
+            extra=_log_extra(request),
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid code")
 
     if registration.status != "pending":
+        logger.warning(
+            "telegram_confirm_invalid_status status=%s username=%s",
+            registration.status,
+            registration.username,
+            extra=_log_extra(request),
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request is not pending")
 
     telegram_username = (payload.telegram_username or "").strip().lstrip("@")
@@ -57,6 +79,11 @@ def confirm_registration(
         registration.status = "rejected"
         db.add(registration)
         db.commit()
+        logger.warning(
+            "telegram_confirm_missing_username username=%s",
+            registration.username,
+            extra=_log_extra(request),
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Telegram username не задан. Установите @username в Telegram и зарегистрируйтесь заново.",
@@ -66,6 +93,12 @@ def confirm_registration(
         registration.status = "rejected"
         db.add(registration)
         db.commit()
+        logger.warning(
+            "telegram_confirm_username_mismatch username=%s telegram_username=%s",
+            registration.username,
+            telegram_username,
+            extra=_log_extra(request),
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
@@ -81,12 +114,22 @@ def confirm_registration(
         registration.status = "expired"
         db.add(registration)
         db.commit()
+        logger.warning(
+            "telegram_confirm_expired username=%s",
+            registration.username,
+            extra=_log_extra(request),
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Code expired")
 
     if registration.attempts >= settings.tg_confirm_max_attempts:
         registration.status = "rejected"
         db.add(registration)
         db.commit()
+        logger.warning(
+            "telegram_confirm_attempts_exceeded username=%s",
+            registration.username,
+            extra=_log_extra(request),
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Attempts exceeded")
 
     registration.attempts += 1
@@ -96,6 +139,11 @@ def confirm_registration(
         registration.status = "rejected"
         db.add(registration)
         db.commit()
+        logger.warning(
+            "telegram_confirm_user_exists username=%s",
+            registration.username,
+            extra=_log_extra(request),
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
 
     existing_telegram = db.query(User).filter(User.telegram_id == payload.telegram_id).first()
@@ -103,6 +151,11 @@ def confirm_registration(
         registration.status = "rejected"
         db.add(registration)
         db.commit()
+        logger.warning(
+            "telegram_confirm_telegram_exists telegram_id=%s",
+            payload.telegram_id,
+            extra=_log_extra(request),
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Telegram already linked")
 
     user = User(
@@ -120,4 +173,10 @@ def confirm_registration(
     db.add(registration)
     db.commit()
 
+    logger.info(
+        "telegram_confirm_approved username=%s telegram_id=%s",
+        registration.username,
+        payload.telegram_id,
+        extra=_log_extra(request),
+    )
     return TelegramConfirmOut(status="approved", message="Registration confirmed")

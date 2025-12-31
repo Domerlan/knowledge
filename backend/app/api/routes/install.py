@@ -254,7 +254,8 @@ def installer_system_setup(payload: InstallerSystemSetupIn) -> InstallerSystemSe
     )
 
     if not ok:
-        logger.error("Installer system setup failed", extra={"output": output})
+        log_extra = {"output": output} if settings.app_env != "production" and output else {}
+        logger.error("Installer system setup failed", extra=log_extra)
 
     return InstallerSystemSetupOut(status="ok" if ok else "failed", output=_safe_output(output))
 
@@ -636,7 +637,8 @@ def installer_full(payload: InstallerFullIn, db: Session = Depends(get_db)) -> I
     if ok:
         steps.append(InstallerStepResult(step="system_install", status="ok"))
     else:
-        logger.error("Installer system install failed", extra={"output": script_output})
+        log_extra = {"output": script_output} if settings.app_env != "production" and script_output else {}
+        logger.error("Installer system install failed", extra=log_extra)
         steps.append(InstallerStepResult(step="system_install", status="failed"))
         return InstallerFullOut(status="failed", steps=steps, output=output)
 

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
+
 import httpx
 
 from app.celery_app import celery_app
 from app.core.config import settings
+
+logger = logging.getLogger("bdm.telegram")
 
 
 @celery_app.task(
@@ -27,5 +31,15 @@ def send_telegram_message(self, telegram_id: str, text: str) -> bool:
     if response.status_code == 200:
         return True
     if response.status_code == 429 or response.status_code >= 500:
+        logger.warning(
+            "telegram_send_retry status=%s body=%s",
+            response.status_code,
+            response.text[:200],
+        )
         raise self.retry()
+    logger.warning(
+        "telegram_send_failed status=%s body=%s",
+        response.status_code,
+        response.text[:200],
+    )
     return False

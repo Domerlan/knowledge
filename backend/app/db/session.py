@@ -13,6 +13,7 @@ def _build_engine():
     engine_kwargs: dict[str, object] = {
         "pool_pre_ping": True,
         "future": True,
+        "hide_parameters": True,
     }
 
     if database_uri.startswith("sqlite"):

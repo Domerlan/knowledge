@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
@@ -24,6 +25,16 @@ from app.schemas.auth import (
 from app.services.auth import build_tokens, clear_auth_cookies, set_auth_cookies
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger("bdm.auth")
+
+
+def _log_extra(request: Request) -> dict[str, object]:
+    return {
+        "request_id": getattr(request.state, "request_id", None),
+        "method": request.method,
+        "path": request.url.path,
+        "client_ip": request.client.host if request.client else None,
+    }
 
 
 @router.post("/register", response_model=RegisterOut)
@@ -45,6 +56,7 @@ def register(
 
     existing_user = db.query(User).filter(User.username == username).first()
     if existing_user:
+        logger.warning("auth_register_conflict username=%s", username, extra=_log_extra(request))
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
 
     now = datetime.now(timezone.utc)
@@ -85,6 +97,8 @@ def register(
     db.commit()
     db.refresh(registration)
 
+    logger.info("auth_register_pending username=%s", username, extra=_log_extra(request))
+
     response.status_code = status.HTTP_201_CREATED
     return RegisterOut(status="pending", code=code, expires_at=registration.expires_at)
 
@@ -123,12 +137,23 @@ def login(
     )
     user = db.query(User).filter(User.username == payload.username.strip()).first()
     if not user or not verify_password(payload.password, user.password_hash):
+        logger.warning(
+            "auth_login_failed username=%s",
+            payload.username.strip(),
+            extra=_log_extra(request),
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid credentials")
     if not user.is_active:
+        logger.warning(
+            "auth_login_inactive username=%s",
+            payload.username.strip(),
+            extra=_log_extra(request),
+        )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User inactive")
 
     tokens = build_tokens(user.id)
     set_auth_cookies(response, tokens)
+    logger.info("auth_login_success username=%s", user.username, extra=_log_extra(request))
     return AuthResponse(user=user)
 
 
