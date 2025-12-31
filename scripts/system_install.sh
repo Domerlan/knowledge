@@ -62,7 +62,7 @@ runuser -u bdm -- python3 -m venv "$ROOT_DIR/bot/.venv"
 runuser -u bdm -- "$ROOT_DIR/bot/.venv/bin/pip" install -r "$ROOT_DIR/bot/requirements.txt"
 
 if [[ "$BUILD_FRONTEND" == "1" ]]; then
-  runuser -u bdm -- bash -lc "cd $ROOT_DIR/frontend && npm install && npm run build"
+  runuser -u bdm -- bash -lc "cd $ROOT_DIR/frontend && npm ci && npm run build"
 fi
 
 if [[ "$SETUP_SYSTEMD" == "1" ]]; then

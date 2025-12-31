@@ -47,7 +47,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 Frontend:
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -56,8 +56,8 @@ npm run dev
 ```bash
 cd backend
 PYTHONPATH=. pytest
-../.venv/bin/ruff check .
-../.venv/bin/black --check .
+.venv/bin/ruff check .
+.venv/bin/black --check .
 ```
 
 ```bash

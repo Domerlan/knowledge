@@ -84,6 +84,11 @@ def enforce_rate_limit(
 
     count = _increment_redis(key, window)
     if count is None:
+        if settings.app_env == "production":
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Rate limiter unavailable",
+            )
         count = _increment_memory(key, window)
 
     if count > limit:

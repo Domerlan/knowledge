@@ -17,3 +17,6 @@ fi
 echo "== Frontend dependencies (npm audit) =="
 cd "${ROOT_DIR}/frontend"
 npm audit --omit=dev
+
+echo "== Bot dependencies (pip-audit) =="
+pip-audit -r "${ROOT_DIR}/bot/requirements.txt"

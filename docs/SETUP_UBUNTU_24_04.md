@@ -306,7 +306,7 @@ BACKEND_BASE_URL=http://127.0.0.1:8000
 
 ```bash
 cd /opt/bdm-knowledge/frontend
-npm install
+npm ci
 ```
 
 ### 5.2 ENV для Next.js
@@ -422,7 +422,7 @@ https://bd-bdm.myrkey.ru
 cd /opt/bdm-knowledge/backend
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-dev.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -438,7 +438,7 @@ BACKEND_BASE_URL=http://127.0.0.1:8000 python bot.py
 ### Frontend
 ```bash
 cd /opt/bdm-knowledge/frontend
-npm install
+npm ci
 API_PROXY_URL=http://127.0.0.1:8000 npm run dev
 ```
 
