@@ -6,6 +6,7 @@
 Инструкция запуска на Ubuntu 24.04: `docs/SETUP_UBUNTU_24_04.md`
 Контракт API: `docs/API.md`  
 Схема БД: `docs/DB.md`
+Чек-лист релиза: `docs/RELEASE.md`
 
 - Web-installer (удалённо): `https://<domain>/install` (требует `INSTALLER_ENABLED=1` + `INSTALLER_TOKEN`)
 - Bootstrap (опционально): `scripts/bootstrap.sh`
