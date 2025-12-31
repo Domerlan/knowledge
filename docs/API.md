@@ -16,6 +16,7 @@ Common error shape:
 ```
 
 Validation errors keep the default list in `detail` and add `code`/`request_id`.
+Unknown fields in request bodies are rejected with 422.
 
 ## Auth
 

@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.base import StrictBaseModel
+
 
 class ArticleBase(BaseModel):
     section_id: str
@@ -13,11 +15,18 @@ class ArticleBase(BaseModel):
     content: str
 
 
-class ArticleCreate(ArticleBase):
+class ArticleInBase(StrictBaseModel):
+    section_id: str
+    slug: str = Field(min_length=1, max_length=128)
+    title: str = Field(min_length=1, max_length=255)
+    content: str
+
+
+class ArticleCreate(ArticleInBase):
     status: Literal["draft", "published", "archived"] = Field(default="draft")
 
 
-class ArticleUpdate(BaseModel):
+class ArticleUpdate(StrictBaseModel):
     section_id: str | None = None
     slug: str | None = None
     title: str | None = None

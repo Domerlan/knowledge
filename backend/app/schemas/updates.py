@@ -4,8 +4,10 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.base import StrictBaseModel
 
-class UpdateBase(BaseModel):
+
+class UpdateBase(StrictBaseModel):
     title: str = Field(min_length=2, max_length=255)
     patch_date: date
     content: str = Field(min_length=1)
@@ -15,7 +17,7 @@ class UpdateCreate(UpdateBase):
     status: str = Field(default="draft", pattern="^(draft|published|archived)$")
 
 
-class UpdateUpdate(BaseModel):
+class UpdateUpdate(StrictBaseModel):
     title: str | None = Field(default=None, min_length=2, max_length=255)
     patch_date: date | None = None
     content: str | None = Field(default=None, min_length=1)

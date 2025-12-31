@@ -4,8 +4,10 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.base import StrictBaseModel
 
-class RegisterIn(BaseModel):
+
+class RegisterIn(StrictBaseModel):
     username: str = Field(min_length=3, max_length=64, pattern=r"^@[A-Za-z0-9_]{3,32}$")
     password: str = Field(min_length=8, max_length=128)
 
@@ -16,7 +18,7 @@ class RegisterOut(BaseModel):
     expires_at: datetime
 
 
-class RegisterStatusIn(BaseModel):
+class RegisterStatusIn(StrictBaseModel):
     code: str = Field(min_length=4, max_length=16)
 
 
@@ -24,7 +26,7 @@ class RegisterStatusOut(BaseModel):
     status: str
 
 
-class LoginIn(BaseModel):
+class LoginIn(StrictBaseModel):
     username: str = Field(min_length=3, max_length=64, pattern=r"^@[A-Za-z0-9_]{3,32}$")
     password: str = Field(min_length=8, max_length=128)
 
@@ -44,7 +46,7 @@ class AuthResponse(BaseModel):
     user: UserOut
 
 
-class TelegramConfirmIn(BaseModel):
+class TelegramConfirmIn(StrictBaseModel):
     code: str = Field(min_length=4, max_length=16)
     telegram_id: str = Field(min_length=3, max_length=32)
     telegram_username: str | None = Field(

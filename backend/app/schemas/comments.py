@@ -4,8 +4,10 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.base import StrictBaseModel
 
-class CommentCreate(BaseModel):
+
+class CommentCreate(StrictBaseModel):
     content: str = Field(min_length=1, max_length=4000)
     parent_id: str | None = None
 

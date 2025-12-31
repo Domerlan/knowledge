@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.base import StrictBaseModel
+
 
 class InstallerStatusOut(BaseModel):
     enabled: bool
@@ -25,13 +27,13 @@ class InstallerMigrateOut(BaseModel):
     status: str
 
 
-class InstallerAdminIn(BaseModel):
+class InstallerAdminIn(StrictBaseModel):
     username: str = Field(min_length=3, max_length=64, pattern=r"^@[A-Za-z0-9_]{3,32}$")
     password: str = Field(min_length=8, max_length=128)
     role: Literal["user", "moderator", "admin"] = "admin"
 
 
-class InstallerSeedIn(BaseModel):
+class InstallerSeedIn(StrictBaseModel):
     author_username: str = Field(min_length=3, max_length=64, pattern=r"^@[A-Za-z0-9_]{3,32}$")
     upsert: bool = False
 
@@ -44,14 +46,14 @@ class InstallerFinishOut(BaseModel):
     status: str
 
 
-class InstallerHostCheckItem(BaseModel):
+class InstallerHostCheckItem(StrictBaseModel):
     name: str
     host: str
     port: int = Field(ge=1, le=65535)
     timeout_ms: int | None = Field(default=None, ge=100, le=10000)
 
 
-class InstallerHostCheckIn(BaseModel):
+class InstallerHostCheckIn(StrictBaseModel):
     items: list[InstallerHostCheckItem] = Field(default_factory=list)
 
 
@@ -74,7 +76,7 @@ class InstallerBootstrapStatusOut(BaseModel):
     system_install_exists: bool
 
 
-class InstallerEnvIn(BaseModel):
+class InstallerEnvIn(StrictBaseModel):
     backend_env: str
     frontend_env: str
 
@@ -83,7 +85,7 @@ class InstallerEnvOut(BaseModel):
     status: str
 
 
-class InstallerDbCheckIn(BaseModel):
+class InstallerDbCheckIn(StrictBaseModel):
     backend_env: str
 
 
@@ -92,7 +94,7 @@ class InstallerDbCheckOut(BaseModel):
     error: str | None = None
 
 
-class InstallerSystemSetupIn(BaseModel):
+class InstallerSystemSetupIn(StrictBaseModel):
     install_node: bool = True
     install_redis: bool = True
     use_nodesource: bool = True
@@ -106,7 +108,7 @@ class InstallerSystemSetupOut(BaseModel):
     output: str | None = None
 
 
-class InstallerOneClickIn(BaseModel):
+class InstallerOneClickIn(StrictBaseModel):
     admin: InstallerAdminIn
     seed: bool = True
     seed_upsert: bool = True
@@ -126,7 +128,7 @@ class InstallerOneClickOut(BaseModel):
     steps: list[InstallerStepResult]
 
 
-class InstallerFullIn(BaseModel):
+class InstallerFullIn(StrictBaseModel):
     backend_env: str
     frontend_env: str
     admin: InstallerAdminIn
