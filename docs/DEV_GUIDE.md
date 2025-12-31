@@ -110,10 +110,18 @@ JWT_ACCESS_TTL_MIN=15
 JWT_REFRESH_TTL_DAYS=30
 
 TELEGRAM_BOT_TOKEN=CHANGE_ME
+TELEGRAM_CONFIRM_TOKEN=CHANGE_ME_LONG_TOKEN
 
 # Для подтверждения регистрации
 TG_CONFIRM_CODE_TTL_MIN=10
 TG_CONFIRM_MAX_ATTEMPTS=5
+
+# Rate limit (включён по умолчанию)
+RATE_LIMIT_ENABLED=1
+RATE_LIMIT_WINDOW_SEC=60
+RATE_LIMIT_LOGIN_MAX=10
+RATE_LIMIT_REGISTER_MAX=5
+RATE_LIMIT_CONFIRM_MAX=10
 
 # Включение web-installer (временно)
 INSTALLER_ENABLED=0
@@ -166,6 +174,9 @@ mysql+pymysql://USER:PASSWORD@192.168.20.6:3306/bdm_kb?charset=utf8mb4
 Из каталога `backend/`:
 
 ```
+export APP_ENV=development
+export JWT_SECRET=dev_change_me_please
+export TELEGRAM_CONFIRM_TOKEN=dev_change_me_please
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -411,6 +422,10 @@ celery -A app.celery_app worker --loglevel=INFO --concurrency=2
 
 - минимально: проверка страниц и форм (можно позже)
 - e2e (опционально): Playwright на auth/публикацию
+
+### 16.3 Security checks
+
+- `scripts/security_audit.sh` (нужен `pip-audit` в PATH)
 
 ## 17) Процесс разработки (workflow)
 

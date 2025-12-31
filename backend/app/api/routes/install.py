@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -62,6 +63,21 @@ from app.services.system_setup import (
 )
 
 router = APIRouter(prefix="/install", tags=["install"])
+logger = logging.getLogger("bdm.install")
+
+
+def _safe_error_detail(exc: Exception, fallback: str) -> str:
+    if settings.app_env == "production":
+        return fallback
+    return str(exc)
+
+
+def _safe_output(output: str | None) -> str | None:
+    if not output:
+        return None
+    if settings.app_env == "production":
+        return None
+    return output
 
 
 @router.get("/public-status", response_model=InstallerPublicStatusOut)
@@ -148,7 +164,11 @@ def installer_hosts_check(payload: InstallerHostCheckIn) -> InstallerHostCheckOu
     return InstallerHostCheckOut(results=results)
 
 
-@router.get("/bootstrap-status", response_model=InstallerBootstrapStatusOut)
+@router.get(
+    "/bootstrap-status",
+    response_model=InstallerBootstrapStatusOut,
+    dependencies=[Depends(require_installer_token)],
+)
 def installer_bootstrap_status() -> InstallerBootstrapStatusOut:
     env_dir = Path("/etc/bdm")
     env_dir_exists = env_dir.exists()
@@ -171,7 +191,11 @@ def installer_env(payload: InstallerEnvIn) -> InstallerEnvOut:
         write_env_file(paths["env_file"], payload.backend_env)
         write_env_file(paths["frontend_env_file"], payload.frontend_env)
     except OSError as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+        logger.exception("Installer env write failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=_safe_error_detail(exc, "Failed to write env files"),
+        ) from exc
 
     return InstallerEnvOut(status="ok")
 
@@ -182,18 +206,27 @@ def installer_db_check(payload: InstallerDbCheckIn) -> InstallerDbCheckOut:
     try:
         database_uri = _database_uri_from_env(env_values)
     except Exception as exc:
-        return InstallerDbCheckOut(db_ok=False, error=str(exc))
+        logger.exception("Installer db uri parsing failed")
+        return InstallerDbCheckOut(
+            db_ok=False,
+            error=_safe_error_detail(exc, "Invalid database settings"),
+        )
 
     try:
         db_session, engine = _session_for_uri(database_uri)
     except Exception as exc:
-        return InstallerDbCheckOut(db_ok=False, error=str(exc))
+        logger.exception("Installer db session setup failed")
+        return InstallerDbCheckOut(
+            db_ok=False,
+            error=_safe_error_detail(exc, "Database connection failed"),
+        )
 
     try:
         db_session.execute(text("SELECT 1"))
         return InstallerDbCheckOut(db_ok=True)
     except SQLAlchemyError as exc:
-        error = str(getattr(exc, "orig", exc))
+        logger.exception("Installer db check failed")
+        error = _safe_error_detail(exc, "Database connection failed")
         return InstallerDbCheckOut(db_ok=False, error=error)
     finally:
         db_session.close()
@@ -216,7 +249,10 @@ def installer_system_setup(payload: InstallerSystemSetupIn) -> InstallerSystemSe
         }
     )
 
-    return InstallerSystemSetupOut(status="ok" if ok else "failed", output=output or None)
+    if not ok:
+        logger.error("Installer system setup failed", extra={"output": output})
+
+    return InstallerSystemSetupOut(status="ok" if ok else "failed", output=_safe_output(output))
 
 
 @router.post("/migrate", response_model=InstallerMigrateOut, dependencies=[Depends(require_installer_available)])
@@ -224,7 +260,11 @@ def installer_migrate() -> InstallerMigrateOut:
     try:
         run_migrations()
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+        logger.exception("Installer migration failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=_safe_error_detail(exc, "Migration failed"),
+        ) from exc
 
     return InstallerMigrateOut(status="ok")
 
@@ -274,7 +314,11 @@ def installer_finish(db: Session = Depends(get_db)) -> InstallerFinishOut:
     try:
         update_env_key(paths["env_file"], "INSTALLER_ENABLED", "0")
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+        logger.exception("Installer finish update failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=_safe_error_detail(exc, "Failed to finalize installer"),
+        ) from exc
     return InstallerFinishOut(status="ok")
 
 
@@ -286,7 +330,14 @@ def _run_one_click(payload: InstallerOneClickIn, db: Session) -> InstallerOneCli
             _database_uri_from_env(env_values) if payload.backend_env else settings.sqlalchemy_database_uri()
         )
     except Exception as exc:
-        steps.append(InstallerStepResult(step="prepare", status="failed", detail=str(exc)))
+        logger.exception("Installer one-click preparation failed")
+        steps.append(
+            InstallerStepResult(
+                step="prepare",
+                status="failed",
+                detail=_safe_error_detail(exc, "Preparation failed"),
+            )
+        )
         return InstallerOneClickOut(status="failed", steps=steps)
     redis_url = env_values.get("REDIS_URL", settings.redis_url)
     db_session = db
@@ -296,7 +347,14 @@ def _run_one_click(payload: InstallerOneClickIn, db: Session) -> InstallerOneCli
         try:
             db_session, engine = _session_for_uri(database_uri)
         except Exception as exc:
-            steps.append(InstallerStepResult(step="prepare", status="failed", detail=str(exc)))
+            logger.exception("Installer one-click session setup failed")
+            steps.append(
+                InstallerStepResult(
+                    step="prepare",
+                    status="failed",
+                    detail=_safe_error_detail(exc, "Database connection failed"),
+                )
+            )
             return InstallerOneClickOut(status="failed", steps=steps)
 
     db_error: str | None = None
@@ -305,7 +363,8 @@ def _run_one_click(payload: InstallerOneClickIn, db: Session) -> InstallerOneCli
         db_ok = True
     except SQLAlchemyError as exc:
         db_ok = False
-        db_error = str(getattr(exc, "orig", exc))
+        logger.exception("Installer one-click db check failed")
+        db_error = _safe_error_detail(exc, "Database connection failed")
     redis_ok = False
     try:
         redis_client = Redis.from_url(redis_url)
@@ -330,7 +389,14 @@ def _run_one_click(payload: InstallerOneClickIn, db: Session) -> InstallerOneCli
         run_migrations(database_uri if payload.backend_env else None)
         steps.append(InstallerStepResult(step="migrate", status="ok"))
     except Exception as exc:
-        steps.append(InstallerStepResult(step="migrate", status="failed", detail=str(exc)))
+        logger.exception("Installer migrations failed")
+        steps.append(
+            InstallerStepResult(
+                step="migrate",
+                status="failed",
+                detail=_safe_error_detail(exc, "Migration failed"),
+            )
+        )
         result = InstallerOneClickOut(status="failed", steps=steps)
         if owns_session and engine:
             db_session.close()
@@ -340,7 +406,14 @@ def _run_one_click(payload: InstallerOneClickIn, db: Session) -> InstallerOneCli
     try:
         existing = db_session.query(User).filter(User.username == payload.admin.username).first()
     except Exception as exc:
-        steps.append(InstallerStepResult(step="admin", status="failed", detail=str(exc)))
+        logger.exception("Installer admin lookup failed")
+        steps.append(
+            InstallerStepResult(
+                step="admin",
+                status="failed",
+                detail=_safe_error_detail(exc, "Failed to check admin user"),
+            )
+        )
         if owns_session and engine:
             db_session.close()
             engine.dispose()
@@ -376,11 +449,12 @@ def _run_one_click(payload: InstallerOneClickIn, db: Session) -> InstallerOneCli
             admin_user = user
             steps.append(InstallerStepResult(step="admin", status="created"))
         except Exception as exc:
+            logger.exception("Installer admin create failed")
             steps.append(
                 InstallerStepResult(
                     step="admin",
                     status="failed",
-                    detail=f"{exc} (password_bytes={len(password_bytes)})",
+                    detail=_safe_error_detail(exc, "Failed to create admin user"),
                 )
             )
             result = InstallerOneClickOut(status="failed", steps=steps)
@@ -394,7 +468,14 @@ def _run_one_click(payload: InstallerOneClickIn, db: Session) -> InstallerOneCli
             seed_database(db_session, admin_user, upsert=payload.seed_upsert)
             steps.append(InstallerStepResult(step="seed", status="ok"))
         except Exception as exc:
-            steps.append(InstallerStepResult(step="seed", status="failed", detail=str(exc)))
+            logger.exception("Installer seed failed")
+            steps.append(
+                InstallerStepResult(
+                    step="seed",
+                    status="failed",
+                    detail=_safe_error_detail(exc, "Seeding failed"),
+                )
+            )
             result = InstallerOneClickOut(status="failed", steps=steps)
             if owns_session and engine:
                 db_session.close()
@@ -409,7 +490,14 @@ def _run_one_click(payload: InstallerOneClickIn, db: Session) -> InstallerOneCli
             mark_installed(db_session, admin_user.id, seed_applied=seed_applied)
             steps.append(InstallerStepResult(step="finish", status="ok"))
         except Exception as exc:
-            steps.append(InstallerStepResult(step="finish", status="failed", detail=str(exc)))
+            logger.exception("Installer finish failed")
+            steps.append(
+                InstallerStepResult(
+                    step="finish",
+                    status="failed",
+                    detail=_safe_error_detail(exc, "Finish failed"),
+                )
+            )
             result = InstallerOneClickOut(status="failed", steps=steps)
             if owns_session and engine:
                 db_session.close()
@@ -424,7 +512,14 @@ def _run_one_click(payload: InstallerOneClickIn, db: Session) -> InstallerOneCli
             update_env_key(paths["env_file"], "INSTALLER_ENABLED", "0")
             steps.append(InstallerStepResult(step="disable_installer", status="ok"))
         except Exception as exc:
-            steps.append(InstallerStepResult(step="disable_installer", status="failed", detail=str(exc)))
+            logger.exception("Installer disable failed")
+            steps.append(
+                InstallerStepResult(
+                    step="disable_installer",
+                    status="failed",
+                    detail=_safe_error_detail(exc, "Failed to disable installer"),
+                )
+            )
             result = InstallerOneClickOut(status="failed", steps=steps)
             if owns_session and engine:
                 db_session.close()
@@ -443,9 +538,16 @@ def installer_one_click(payload: InstallerOneClickIn, db: Session = Depends(get_
     try:
         return _run_one_click(payload, db)
     except Exception as exc:
+        logger.exception("Installer one-click failed")
         return InstallerOneClickOut(
             status="failed",
-            steps=[InstallerStepResult(step="unexpected", status="failed", detail=str(exc))],
+            steps=[
+                InstallerStepResult(
+                    step="unexpected",
+                    status="failed",
+                    detail=_safe_error_detail(exc, "Unexpected error"),
+                )
+            ],
         )
 
 
@@ -460,8 +562,15 @@ def installer_full(payload: InstallerFullIn, db: Session = Depends(get_db)) -> I
         write_env_file(paths["frontend_env_file"], payload.frontend_env)
         steps.append(InstallerStepResult(step="write_env", status="ok"))
     except Exception as exc:
-        steps.append(InstallerStepResult(step="write_env", status="failed", detail=str(exc)))
-        return InstallerFullOut(status="failed", steps=steps, output=output)
+        logger.exception("Installer env write failed")
+        steps.append(
+            InstallerStepResult(
+                step="write_env",
+                status="failed",
+                detail=_safe_error_detail(exc, "Failed to write env files"),
+            )
+        )
+        return InstallerFullOut(status="failed", steps=steps, output=_safe_output(output))
 
     env_values = parse_env(payload.backend_env)
 
@@ -493,8 +602,15 @@ def installer_full(payload: InstallerFullIn, db: Session = Depends(get_db)) -> I
             )
             steps.append(InstallerStepResult(step="provision_db", status="ok"))
         except Exception as exc:
-            steps.append(InstallerStepResult(step="provision_db", status="failed", detail=str(exc)))
-            return InstallerFullOut(status="failed", steps=steps, output=output)
+            logger.exception("Installer provision db failed")
+            steps.append(
+                InstallerStepResult(
+                    step="provision_db",
+                    status="failed",
+                    detail=_safe_error_detail(exc, "Database provisioning failed"),
+                )
+            )
+            return InstallerFullOut(status="failed", steps=steps, output=_safe_output(output))
 
     ok, script_output = run_system_install(
         {
@@ -508,10 +624,11 @@ def installer_full(payload: InstallerFullIn, db: Session = Depends(get_db)) -> I
             "start_services": payload.start_services,
         }
     )
-    output = script_output
+    output = _safe_output(script_output)
     if ok:
         steps.append(InstallerStepResult(step="system_install", status="ok"))
     else:
+        logger.error("Installer system install failed", extra={"output": script_output})
         steps.append(InstallerStepResult(step="system_install", status="failed"))
         return InstallerFullOut(status="failed", steps=steps, output=output)
 
@@ -535,7 +652,14 @@ def installer_full(payload: InstallerFullIn, db: Session = Depends(get_db)) -> I
             update_env_key(paths["env_file"], "INSTALLER_ENABLED", "0")
             steps.append(InstallerStepResult(step="disable_installer", status="ok"))
         except Exception as exc:
-            steps.append(InstallerStepResult(step="disable_installer", status="failed", detail=str(exc)))
+            logger.exception("Installer disable failed")
+            steps.append(
+                InstallerStepResult(
+                    step="disable_installer",
+                    status="failed",
+                    detail=_safe_error_detail(exc, "Failed to disable installer"),
+                )
+            )
             return InstallerFullOut(status="failed", steps=steps, output=output)
 
     return InstallerFullOut(status="ok", steps=steps, output=output)

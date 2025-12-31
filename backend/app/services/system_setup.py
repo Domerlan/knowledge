@@ -52,6 +52,11 @@ def parse_env(content: str) -> dict[str, str]:
     return env
 
 
+def _quote_identifier(value: str) -> str:
+    safe = value.replace("`", "``")
+    return f"`{safe}`"
+
+
 def provision_database(
     host: str,
     port: int,
@@ -72,14 +77,18 @@ def provision_database(
     )
     try:
         with connection.cursor() as cursor:
+            db_identifier = _quote_identifier(db_name)
             cursor.execute(
-                f"CREATE DATABASE IF NOT EXISTS `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+                f"CREATE DATABASE IF NOT EXISTS {db_identifier} "
+                "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
             )
             cursor.execute(
-                f"CREATE USER IF NOT EXISTS '{app_user}'@'{app_host}' IDENTIFIED BY '{app_password}'"
+                "CREATE USER IF NOT EXISTS %s@%s IDENTIFIED BY %s",
+                (app_user, app_host, app_password),
             )
             cursor.execute(
-                f"GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{app_user}'@'{app_host}'"
+                f"GRANT ALL PRIVILEGES ON {db_identifier}.* TO %s@%s",
+                (app_user, app_host),
             )
             cursor.execute("FLUSH PRIVILEGES")
     finally:

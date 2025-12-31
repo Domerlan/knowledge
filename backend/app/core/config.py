@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     refresh_cookie_name: str = Field("refresh_token", alias="REFRESH_COOKIE_NAME")
 
     telegram_bot_token: str = Field("", alias="TELEGRAM_BOT_TOKEN")
+    telegram_confirm_token: str = Field("", alias="TELEGRAM_CONFIRM_TOKEN")
     tg_confirm_code_ttl_min: int = Field(10, alias="TG_CONFIRM_CODE_TTL_MIN")
     tg_confirm_max_attempts: int = Field(5, alias="TG_CONFIRM_MAX_ATTEMPTS")
 
@@ -44,6 +45,12 @@ class Settings(BaseSettings):
         alias="IFRAME_ALLOWED_HOSTS",
     )
 
+    rate_limit_enabled: bool = Field(True, alias="RATE_LIMIT_ENABLED")
+    rate_limit_window_sec: int = Field(60, alias="RATE_LIMIT_WINDOW_SEC")
+    rate_limit_login_max: int = Field(10, alias="RATE_LIMIT_LOGIN_MAX")
+    rate_limit_register_max: int = Field(5, alias="RATE_LIMIT_REGISTER_MAX")
+    rate_limit_confirm_max: int = Field(10, alias="RATE_LIMIT_CONFIRM_MAX")
+
     def sqlalchemy_database_uri(self) -> str:
         if self.database_url:
             return self.database_url
@@ -55,3 +62,23 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def _require_strong_secret(value: str, name: str) -> None:
+    if not value or value == "CHANGE_ME" or len(value) < 32:
+        raise ValueError(f"{name} must be set to a strong secret")
+
+
+def _validate_settings(current: Settings) -> None:
+    if current.app_env != "production":
+        return
+
+    _require_strong_secret(current.jwt_secret, "JWT_SECRET")
+
+    if current.installer_enabled:
+        _require_strong_secret(current.installer_token, "INSTALLER_TOKEN")
+
+    _require_strong_secret(current.telegram_confirm_token, "TELEGRAM_CONFIRM_TOKEN")
+
+
+_validate_settings(settings)

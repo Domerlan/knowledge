@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.deps import get_db
+from app.core.rate_limit import enforce_rate_limit
 from app.core.security import decode_token, generate_confirm_code, hash_confirm_code, hash_password, verify_password
 from app.models.registration_request import RegistrationRequest
 from app.models.user import User
@@ -26,7 +27,18 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=RegisterOut)
-def register(payload: RegisterIn, response: Response, db: Session = Depends(get_db)) -> RegisterOut:
+def register(
+    payload: RegisterIn,
+    response: Response,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> RegisterOut:
+    enforce_rate_limit(
+        request,
+        "auth:register",
+        settings.rate_limit_register_max,
+        identity=payload.username.strip().lower(),
+    )
     username = payload.username.strip()
     if not username.startswith("@"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username must start with @")
@@ -97,7 +109,18 @@ def register_status(payload: RegisterStatusIn, db: Session = Depends(get_db)) ->
 
 
 @router.post("/login", response_model=AuthResponse)
-def login(payload: LoginIn, response: Response, db: Session = Depends(get_db)) -> AuthResponse:
+def login(
+    payload: LoginIn,
+    response: Response,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> AuthResponse:
+    enforce_rate_limit(
+        request,
+        "auth:login",
+        settings.rate_limit_login_max,
+        identity=payload.username.strip().lower(),
+    )
     user = db.query(User).filter(User.username == payload.username.strip()).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid credentials")

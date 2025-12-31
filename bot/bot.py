@@ -34,12 +34,16 @@ async def confirm_handler(message: Message) -> None:
         "telegram_id": str(message.from_user.id),
         "telegram_username": message.from_user.username,
     }
+    headers = {}
+    if settings.telegram_confirm_token:
+        headers["X-Bot-Token"] = settings.telegram_confirm_token
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.post(
                 f"{settings.backend_base_url}/api/telegram/confirm",
                 json=payload,
+                headers=headers,
             )
     except httpx.RequestError:
         await message.answer("Не удалось связаться с сервером. Попробуйте позже.")

@@ -7,6 +7,7 @@ class Settings(BaseSettings):
 
     telegram_bot_token: str = Field("", alias="TELEGRAM_BOT_TOKEN")
     backend_base_url: str = Field("http://127.0.0.1:8000", alias="BACKEND_BASE_URL")
+    telegram_confirm_token: str = Field("", alias="TELEGRAM_CONFIRM_TOKEN")
 
 
 settings = Settings()
