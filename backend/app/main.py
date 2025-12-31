@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 import uuid
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from redis.exceptions import RedisError
+from sqlalchemy.exc import SQLAlchemyError
+from starlette.responses import JSONResponse
 
 from app.api.api import api_router
 from app.core.config import settings
@@ -37,6 +42,38 @@ if settings.cors_allow_origins:
             allow_methods=["*"],
             allow_headers=["*"],
         )
+
+
+def _service_unavailable(request: Request, detail: str) -> JSONResponse:
+    request_id = getattr(request.state, "request_id", None)
+    payload = {"detail": detail}
+    if request_id:
+        payload["request_id"] = request_id
+    return JSONResponse(status_code=503, content=payload)
+
+
+@app.exception_handler(SQLAlchemyError)
+async def sqlalchemy_error_handler(request: Request, exc: SQLAlchemyError):
+    logger.exception("Database error")
+    return _service_unavailable(request, "Database unavailable")
+
+
+@app.exception_handler(RedisError)
+async def redis_error_handler(request: Request, exc: RedisError):
+    logger.exception("Redis error")
+    return _service_unavailable(request, "Cache unavailable")
+
+
+@app.exception_handler(httpx.RequestError)
+async def httpx_error_handler(request: Request, exc: httpx.RequestError):
+    logger.exception("HTTP client error")
+    return _service_unavailable(request, "Upstream service unavailable")
+
+
+@app.exception_handler(asyncio.TimeoutError)
+async def timeout_error_handler(request: Request, exc: asyncio.TimeoutError):
+    logger.exception("Timeout error")
+    return _service_unavailable(request, "Upstream service timeout")
 
 
 @app.middleware("http")

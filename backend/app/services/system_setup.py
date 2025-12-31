@@ -7,6 +7,8 @@ from typing import Any
 
 import pymysql
 
+DEFAULT_INSTALL_TIMEOUT_SEC = 1800
+
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
@@ -119,9 +121,17 @@ def run_system_install(options: dict[str, Any]) -> tuple[bool, str]:
     if os.geteuid() != 0:
         cmd = ["sudo", "-n"] + cmd
 
-    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
-    output = (result.stdout or "") + ("\n" + result.stderr if result.stderr else "")
-    return result.returncode == 0, output.strip()
+    timeout_sec = int(options.get("timeout_sec", DEFAULT_INSTALL_TIMEOUT_SEC))
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=timeout_sec)
+        output = (result.stdout or "") + ("\n" + result.stderr if result.stderr else "")
+        return result.returncode == 0, output.strip()
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout.decode("utf-8", "replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
+        stderr = exc.stderr.decode("utf-8", "replace") if isinstance(exc.stderr, bytes) else (exc.stderr or "")
+        output = stdout + ("\n" + stderr if stderr else "")
+        detail = output.strip() or f"System install timed out after {timeout_sec}s"
+        return False, detail
 
 
 def system_paths() -> dict[str, str]:

@@ -6,8 +6,14 @@ from app.celery_app import celery_app
 from app.core.config import settings
 
 
-@celery_app.task
-def send_telegram_message(telegram_id: str, text: str) -> bool:
+@celery_app.task(
+    bind=True,
+    autoretry_for=(httpx.RequestError,),
+    retry_backoff=True,
+    retry_jitter=True,
+    retry_kwargs={"max_retries": 3},
+)
+def send_telegram_message(self, telegram_id: str, text: str) -> bool:
     if not settings.telegram_bot_token:
         return False
 
@@ -16,5 +22,10 @@ def send_telegram_message(telegram_id: str, text: str) -> bool:
         "chat_id": telegram_id,
         "text": text,
     }
-    response = httpx.post(url, json=payload, timeout=10)
-    return response.status_code == 200
+    timeout = httpx.Timeout(10.0, connect=3.0)
+    response = httpx.post(url, json=payload, timeout=timeout)
+    if response.status_code == 200:
+        return True
+    if response.status_code == 429 or response.status_code >= 500:
+        raise self.retry()
+    return False

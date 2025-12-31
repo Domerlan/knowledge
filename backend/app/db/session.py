@@ -19,6 +19,10 @@ def _build_engine():
         connect_args["check_same_thread"] = False
         if database_uri.endswith(":memory:"):
             engine_kwargs["poolclass"] = StaticPool
+    else:
+        connect_args["connect_timeout"] = 5
+        connect_args["read_timeout"] = 10
+        connect_args["write_timeout"] = 10
 
     return create_engine(database_uri, connect_args=connect_args, **engine_kwargs)
 

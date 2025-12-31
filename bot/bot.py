@@ -38,16 +38,23 @@ async def confirm_handler(message: Message) -> None:
     if settings.telegram_confirm_token:
         headers["X-Bot-Token"] = settings.telegram_confirm_token
 
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.post(
-                f"{settings.backend_base_url}/api/telegram/confirm",
-                json=payload,
-                headers=headers,
-            )
-    except httpx.RequestError:
-        await message.answer("Не удалось связаться с сервером. Попробуйте позже.")
-        return
+    timeout = httpx.Timeout(10.0, connect=3.0)
+    response = None
+    for attempt in range(2):
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(
+                    f"{settings.backend_base_url}/api/telegram/confirm",
+                    json=payload,
+                    headers=headers,
+                )
+            break
+        except httpx.RequestError:
+            if attempt == 0:
+                await asyncio.sleep(0.3)
+                continue
+            await message.answer("Не удалось связаться с сервером. Попробуйте позже.")
+            return
 
     if response.status_code == 200:
         await message.answer("Регистрация подтверждена. Теперь вы можете войти.")

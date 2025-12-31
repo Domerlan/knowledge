@@ -2,8 +2,25 @@ export type ApiError = { detail?: string };
 
 const browserBase = process.env.NEXT_PUBLIC_API_BASE ?? "/api";
 const serverBase = process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000";
+const defaultTimeoutMs = 15000;
+const retryDelayMs = 300;
 
 const resolveBase = () => (typeof window === "undefined" ? serverBase : browserBase);
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const fetchWithTimeout = async (url: string, options: RequestInit, timeoutMs: number): Promise<Response> => {
+  if (options.signal) {
+    return fetch(url, options);
+  }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
 
 export async function apiFetch<T>(
   path: string,
@@ -15,22 +32,50 @@ export async function apiFetch<T>(
     "Content-Type": "application/json",
     ...(headers ?? {}),
   };
+  const method = (rest.method ?? "GET").toUpperCase();
+  const shouldRetry = method === "GET" || method === "HEAD";
+  const maxAttempts = shouldRetry ? 2 : 1;
   const doFetch = async () =>
-    fetch(`${base}${path}`, {
-      credentials: "include",
-      headers: mergedHeaders,
-      ...rest,
-    });
+    fetchWithTimeout(
+      `${base}${path}`,
+      {
+        credentials: "include",
+        headers: mergedHeaders,
+        ...rest,
+      },
+      defaultTimeoutMs,
+    );
   let response: Response;
   try {
-    response = await doFetch();
+    let lastError: unknown;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        response = await doFetch();
+        lastError = undefined;
+        break;
+      } catch (error) {
+        lastError = error;
+        if (attempt < maxAttempts - 1) {
+          await sleep(retryDelayMs);
+        }
+      }
+    }
+    if (lastError) {
+      throw lastError;
+    }
   } catch (error) {
+    const detail =
+      error instanceof DOMException && error.name === "AbortError"
+        ? "Request timeout"
+        : error instanceof Error
+          ? error.message
+          : "Network error";
     return {
       data: null,
       error: {
-        detail: error instanceof Error ? error.message : "Network error",
+        detail,
       },
-      response: new Response(null, { status: 0, statusText: "Network error" }),
+      response: new Response(null, { status: 0, statusText: detail }),
     };
   }
 

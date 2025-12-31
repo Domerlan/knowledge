@@ -136,7 +136,11 @@ def installer_checks(db: Session = Depends(get_db)) -> InstallerChecksOut:
     db_ok = check_database(db)
     redis_ok = False
     try:
-        redis_client = Redis.from_url(settings.redis_url)
+        redis_client = Redis.from_url(
+            settings.redis_url,
+            socket_connect_timeout=0.2,
+            socket_timeout=0.5,
+        )
         redis_ok = redis_client.ping()
     except Exception:
         redis_ok = False
@@ -367,7 +371,11 @@ def _run_one_click(payload: InstallerOneClickIn, db: Session) -> InstallerOneCli
         db_error = _safe_error_detail(exc, "Database connection failed")
     redis_ok = False
     try:
-        redis_client = Redis.from_url(redis_url)
+        redis_client = Redis.from_url(
+            redis_url,
+            socket_connect_timeout=0.2,
+            socket_timeout=0.5,
+        )
         redis_ok = redis_client.ping()
     except Exception:
         redis_ok = False
