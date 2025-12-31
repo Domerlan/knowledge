@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -64,6 +65,7 @@ def register(
         db.query(RegistrationRequest)
         .filter(RegistrationRequest.username == username, RegistrationRequest.status == "pending")
         .order_by(RegistrationRequest.created_at.desc())
+        .with_for_update()
         .first()
     )
     if existing_request:
@@ -76,7 +78,6 @@ def register(
             )
         existing_request.status = "expired"
         db.add(existing_request)
-        db.commit()
 
     code = generate_confirm_code()
     code_hash = hash_confirm_code(code)
@@ -94,7 +95,14 @@ def register(
         status="pending",
     )
     db.add(registration)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Registration conflict",
+        ) from None
     db.refresh(registration)
 
     logger.info("auth_register_pending username=%s", username, extra=_log_extra(request))

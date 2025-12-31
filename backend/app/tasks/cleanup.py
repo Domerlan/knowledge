@@ -12,18 +12,15 @@ def cleanup_expired_registration_requests() -> int:
     db = SessionLocal()
     try:
         now = datetime.now(timezone.utc)
-        expired = (
+        updated = (
             db.query(RegistrationRequest)
             .filter(
                 RegistrationRequest.status == "pending",
                 RegistrationRequest.expires_at <= now,
             )
-            .all()
+            .update({RegistrationRequest.status: "expired"}, synchronize_session=False)
         )
-        for request in expired:
-            request.status = "expired"
-            db.add(request)
         db.commit()
-        return len(expired)
+        return int(updated or 0)
     finally:
         db.close()

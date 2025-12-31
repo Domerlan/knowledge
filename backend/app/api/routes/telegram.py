@@ -5,6 +5,7 @@ import logging
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -56,7 +57,12 @@ def confirm_registration(
     )
     _require_bot_token(request)
     code_hash = hash_confirm_code(payload.code.strip().upper())
-    registration = db.query(RegistrationRequest).filter(RegistrationRequest.code_hash == code_hash).first()
+    registration = (
+        db.query(RegistrationRequest)
+        .filter(RegistrationRequest.code_hash == code_hash)
+        .with_for_update()
+        .first()
+    )
     if not registration:
         logger.warning(
             "telegram_confirm_invalid_code telegram_id=%s",
@@ -171,7 +177,24 @@ def confirm_registration(
 
     db.add(user)
     db.add(registration)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        refreshed = db.query(RegistrationRequest).filter(RegistrationRequest.id == registration.id).first()
+        if refreshed:
+            registration = refreshed
+        if db.query(User).filter(User.username == registration.username).first():
+            registration.status = "rejected"
+            db.add(registration)
+            db.commit()
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
+        if db.query(User).filter(User.telegram_id == payload.telegram_id).first():
+            registration.status = "rejected"
+            db.add(registration)
+            db.commit()
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Telegram already linked")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Registration conflict") from None
 
     logger.info(
         "telegram_confirm_approved username=%s telegram_id=%s",

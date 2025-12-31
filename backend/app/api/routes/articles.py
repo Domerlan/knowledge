@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user_optional, get_db, require_role
@@ -80,7 +81,11 @@ def create_article(
         article.published_at = datetime.now(timezone.utc)
 
     db.add(article)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Slug already exists") from None
     db.refresh(article)
     return article
 
@@ -120,7 +125,13 @@ def update_article(
             article.published_at = datetime.now(timezone.utc)
 
     db.add(article)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        if payload.slug:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Slug already exists") from None
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Update conflict") from None
     db.refresh(article)
     return article
 

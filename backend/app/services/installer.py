@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -74,9 +74,10 @@ def seed_database(db: Session, author: User, upsert: bool) -> None:
 
 
 def mark_installed(db: Session, admin_user_id: str | None, seed_applied: bool) -> InstallationState:
-    state = db.query(InstallationState).first()
+    now = datetime.now(timezone.utc)
+    state = db.query(InstallationState).with_for_update().first()
     if state:
-        state.installed_at = datetime.now(timezone.utc)
+        state.installed_at = now
         state.admin_user_id = admin_user_id
         state.seed_applied = seed_applied
         db.add(state)
@@ -85,12 +86,24 @@ def mark_installed(db: Session, admin_user_id: str | None, seed_applied: bool) -
         return state
 
     state = InstallationState(
-        installed_at=datetime.now(timezone.utc),
+        id=1,
+        installed_at=now,
         admin_user_id=admin_user_id,
         seed_applied=seed_applied,
     )
     db.add(state)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        state = db.query(InstallationState).with_for_update().first()
+        if not state:
+            raise
+        state.installed_at = now
+        state.admin_user_id = admin_user_id
+        state.seed_applied = seed_applied
+        db.add(state)
+        db.commit()
     db.refresh(state)
     return state
 
