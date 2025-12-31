@@ -9,6 +9,7 @@ class Settings(BaseSettings):
 
     app_env: str = Field("production", alias="APP_ENV")
     base_url: str = Field("http://localhost:3000", alias="BASE_URL")
+    log_level: str = Field("INFO", alias="LOG_LEVEL")
 
     db_host: str = Field("127.0.0.1", alias="DB_HOST")
     db_port: int = Field(3306, alias="DB_PORT")

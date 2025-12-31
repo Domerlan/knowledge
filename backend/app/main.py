@@ -39,7 +39,7 @@ LOG_FORMAT = (
     "request_id=%(request_id)s method=%(method)s path=%(path)s "
     "status=%(status_code)s duration_ms=%(duration_ms)s client_ip=%(client_ip)s"
 )
-logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+logging.basicConfig(level=settings.log_level.upper(), format=LOG_FORMAT)
 logging.getLogger().addFilter(_DefaultLogFilter())
 
 logger = logging.getLogger("bdm")

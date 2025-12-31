@@ -95,6 +95,7 @@ Backend
 
 ```
 APP_ENV=production
+LOG_LEVEL=INFO
 BASE_URL=https://bd-bdm.myrkey.ru
 
 DB_HOST=192.168.20.6
@@ -196,6 +197,9 @@ gunicorn app.main:app \
   --access-logfile - \
   --error-logfile -
 ```
+
+В проде конфигурация берётся из `/etc/bdm/bdm.env` через systemd `EnvironmentFile`.
+`.env` используется только для локальной разработки.
 
 ## 6) Миграции БД (Alembic)
 
@@ -360,6 +364,9 @@ celery -A app.celery_app worker --loglevel=INFO --concurrency=2
 - Tailwind + shadcn/ui
 - формы: react-hook-form + zod
 - контент статьи: Markdown renderer (MVP) или TipTap/Editor.js (позже)
+
+Для смены API base URL без пересборки используйте прокси на уровне Nginx
+(`location /api/` → backend) и `NEXT_PUBLIC_API_BASE=/api`.
 
 ## 13) Nginx reverse proxy (192.168.20.3)
 
