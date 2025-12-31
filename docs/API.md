@@ -4,6 +4,19 @@ Base URL: `/api`
 
 Auth uses HttpOnly cookies: `access_token`, `refresh_token`.
 
+## Errors
+
+Common error shape:
+```json
+{
+  "detail": "Human readable message",
+  "code": "http_400",
+  "request_id": "uuid"
+}
+```
+
+Validation errors keep the default list in `detail` and add `code`/`request_id`.
+
 ## Auth
 
 ### POST /api/auth/register

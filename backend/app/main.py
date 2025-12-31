@@ -7,7 +7,8 @@ import uuid
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from redis.exceptions import RedisError
@@ -89,6 +90,30 @@ def _service_unavailable(request: Request, detail: str) -> JSONResponse:
     if request_id:
         payload["request_id"] = request_id
     return JSONResponse(status_code=503, content=payload)
+
+
+def _error_payload(request: Request, detail: object, code: str) -> dict[str, object]:
+    if isinstance(detail, dict):
+        payload: dict[str, object] = dict(detail)
+    elif isinstance(detail, list):
+        payload = {"detail": detail}
+    else:
+        payload = {"detail": detail}
+    payload.setdefault("code", code)
+    payload.setdefault("request_id", getattr(request.state, "request_id", None))
+    return payload
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    payload = _error_payload(request, exc.detail, f"http_{exc.status_code}")
+    return JSONResponse(status_code=exc.status_code, content=payload)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    payload = _error_payload(request, exc.errors(), "validation_error")
+    return JSONResponse(status_code=422, content=payload)
 
 
 @app.exception_handler(SQLAlchemyError)

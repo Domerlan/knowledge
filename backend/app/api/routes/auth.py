@@ -108,7 +108,7 @@ def register_status(payload: RegisterStatusIn, db: Session = Depends(get_db)) ->
     code_hash = hash_confirm_code(payload.code.strip().upper())
     request = db.query(RegistrationRequest).filter(RegistrationRequest.code_hash == code_hash).first()
     if not request:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid code")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid code")
 
     if request.status == "pending":
         now = datetime.now(timezone.utc)
@@ -142,7 +142,7 @@ def login(
             payload.username.strip(),
             extra=_log_extra(request),
         )
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid credentials")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if not user.is_active:
         logger.warning(
             "auth_login_inactive username=%s",
